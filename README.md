@@ -48,58 +48,81 @@ if __name__ == "__main__":
 
 ## `Codification` class
 
-```python
-class Codification:
+```pythonclass JPEG:
     def __init__(self):
-        pass
+        self.fft_options = {
+            "DCT": self.dct,
+            "KLT": self.klt,
+            "FFT": self.fft
+        }
     
     def options(self) -> dict:
         return {
-            "Option name": {
+            "Transform": {
                 "type": "combobox",
-                "values": ["value1", "value2", "value3"],
-                "default": "value1"
+                "values": ["DCT", "KLT", "FFT"],
+                "default": "DCT"
             },
-            "Option name": {
-                "type": "checkbox",
-                "default": True
+            "Quantization Factor": {
+                "type": "spinbox",
+                "values": [1, 100, 1],
+                "default": 1
+            },
+            "Block Size": {
+                "type": "combobox",
+                "values": ["8", "16", "32", "64", "128"],
+                "default": "8"
             },
         }
     
-    def steps(self, parent) -> list:
+    def steps(self, steps_parent) -> list:
         return [
-            StepFrame(
-                name="First step",
-                description="Description of the step",
-                parent=parent
-            ),
-            StepFrame(
-                name="Second step",
-                description="Description of the step",
-                parent=parent
-            ),
-            StepFrame(
-                name="Third step",
-                description="Description of the step",
-                parent=parent
-            )
+            ...
         ]
     
-    def configure(self, options) -> bool:
-        pass
-    
-    def __call__(self, image, steps_parent) -> dict | dict:
-        steps = self.steps(steps_parent)
-        ...
-        axes = steps[0].figure.add_subplot()
-        axes.imshow(image)
-        ...
-        results = {
-            "image": compressed_image,
-            "parameter1": "value1",
-            "parameter2": "value2",
-            "parameter3": "value3"
+    def configure(self, **kwargs):
+        self.fft_algorithm = kwargs.get("Transform", "DCT")
+        self.quantization_factor = kwargs.get("Quantization Factor", 1)
+        self.block_size = int(kwargs.get("Block Size", "8"))
+
+    def __call__(self, image):
+        self.blocks = self.create_blocks(image, self.block_size)
+        self.transformed_blocks = self.transform_blocks(self.blocks)
+        self.quantized_blocks = self.quantize_blocks(self.transformed_blocks)
+        self.encoded_blocks = self.encode_blocks(self.quantized_blocks)
+        self.reconstructed_image = self.reconstruct_image(self.encoded_blocks)
+        return {
+            "image": self.reconstructed_image,
+            "snr": snr(image, self.reconstructed_image)
         }
 
-        return results, steps
+    def create_blocks(self, image, block_size):
+        pass
+
+    def transform_blocks(self, blocks):
+        return [self.fft_options[self.fft_algorithm](block) for block in blocks]
+
+    def dct(self, block):
+        pass
+
+    def klt(self, block):
+        pass
+
+    def fft(self, block):
+        pass
+
+    def quantize_blocks(self, blocks):
+        pass
+
+    def encode_blocks(self, blocks):
+        pass
+
+    def reconstruct_image(self, blocks):
+        pass
 ```
+
+<h3>Utility links:</h3>
+
+- executable file: https://www.youtube.com/watch?v=Iv_dECet_oM&ab_channel=CodeFirstwithHala
+- file dialogs: https://www.youtube.com/watch?v=oZpTv6Z629c&ab_channel=CodersLegacy
+
