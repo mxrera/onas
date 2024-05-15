@@ -17,7 +17,7 @@ class JPEG:
                 "default": "DCT"
             },
             "Quantization Factor": {
-                "type": "spinbox",
+                "type": "slider",
                 "values": [1, 100, 1],
                 "default": 1
             },

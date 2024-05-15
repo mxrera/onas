@@ -18,23 +18,26 @@ The options method should return a dictionary with the options that the user can
 }
 ```
 
-- `checkbox`: A checkbox with a boolean value. No values are needed.
+> [!IMPORTANT]  
+> The values must always be a list of strings.
+
+- `switch`: A switch with a boolean value as default. No values are needed.
 
 ```python
 {
     "Option name": {
-        "type": "checkbox",
+        "type": "switch",
         "default": False
     }
 }
 ```
 
-- `spinbox`: A spinbox with a range of values. The values are a list with the minimum, maximum and step.
+- `slider`: A slider with a range of values. The values are a list with the minimum, maximum and the step.
 
 ```python
 {
     "Option name": {
-        "type": "spinbox",
+        "type": "slider",
         "values": [1, 10, 1],
         "default": 5
     }
