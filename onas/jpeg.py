@@ -23,8 +23,8 @@ class JPEG:
             },
             "Block Size": {
                 "type": "combobox",
-                "values": [8, 16, 32, 64, 128],
-                "default": 8
+                "values": ["8", "16", "32", "64", "128"],
+                "default": "8"
             },
         }
     
@@ -82,7 +82,7 @@ class JPEG:
     def configure(self, **kwargs):
         self.fft_algorithm = kwargs.get("Transform", "DCT")
         self.quantization_factor = kwargs.get("Quantization Factor", 1)
-        self.block_size = kwargs.get("Block Size", 8)
+        self.block_size = int(kwargs.get("Block Size", "8"))
 
     def __call__(self, image):
         self.blocks = self.create_blocks(image, self.block_size)
