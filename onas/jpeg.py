@@ -51,9 +51,10 @@ class JPEG:
             StepsFrame(
                 name="Quantization",
                 parent=steps_parent,
-                description="Based on psycho-visual studies, a different quantization table is used \
+                description="Based on psycho-visual studies, a different quantization step is used \
                             for each transform coefficient. The compression can be controlled by multiplying \
-                            the quantization table by a factor, by default 1",
+                            the quantization table by a factor, by default 1. The formula applied is: \
+                            `^X = round( X / (Q * factor) )`",
             ),
             StepsFrame(
                 name="DC coefficient encoding",
@@ -87,7 +88,12 @@ class JPEG:
         self.blocks = self.create_blocks(image, self.block_size)
         self.transformed_blocks = self.transform_blocks(self.blocks)
         self.quantized_blocks = self.quantize_blocks(self.transformed_blocks)
-        pass
+        self.encoded_blocks = self.encode_blocks(self.quantized_blocks)
+        self.reconstructed_image = self.reconstruct_image(self.encoded_blocks)
+        return {
+            "image": self.reconstructed_image,
+            "snr": snr(image, self.reconstructed_image)
+        }
 
     def create_blocks(self, image, block_size):
         pass
@@ -105,4 +111,10 @@ class JPEG:
         pass
 
     def quantize_blocks(self, blocks):
+        pass
+
+    def encode_blocks(self, blocks):
+        pass
+
+    def reconstruct_image(self, blocks):
         pass
