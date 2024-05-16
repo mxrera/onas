@@ -85,11 +85,18 @@ class App(ctk.CTk):
         self.tabview.tab("results").grid_columnconfigure(0, weight=1)
         self.tabview.tab("results").grid_rowconfigure(0, weight=1)
         self.tabview.tab("results").grid_rowconfigure(1, weight=9)
+        self.tabview.tab("results").grid_rowconfigure(2, weight=1)
 
         ctk.CTkLabel(self.tabview.tab("results"), text="Results").grid(row=0, column=0, sticky=ctk.W + ctk.E)
         self.results_frame = ctk.CTkScrollableFrame(self.tabview.tab("results"), fg_color=FG_COLOR)        
         self.results_frame.grid(row=1, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
         self.results_frame.grid_columnconfigure(0, weight=1, uniform="a")
+        ctk.CTkButton(
+            self.tabview.tab("results"),
+            text="save image",
+            command=self.on_save_image,
+            fg_color=HIGHLIGHT_COLOR
+        ).grid(row=2, column=0, sticky=ctk.W + ctk.E)
 
     def __init_main_frame(self):
         self.main_frame = ctk.CTkFrame(self, fg_color=BG_COLOR)
@@ -131,6 +138,19 @@ class App(ctk.CTk):
                 size=(210, self.image.height * 210 // self.image.width)
             )
             self.image_preview.configure(image=self.source_image_frame)
+    
+    def on_save_image(self):
+        if self.results.get("image") is None:
+            return
+        file_path = filedialog.asksaveasfilename(
+            title="Save image",
+            filetypes=[
+                ("JPEG files", "*.jpg *.jpeg"),
+                ("All files", "*.*")
+            ]
+        )
+        if file_path:
+            self.codification.save_image(self.results["image"], file_path)
 
     def on_codification_select(self, codification):
         if codification == "JPEG":
@@ -147,7 +167,7 @@ class App(ctk.CTk):
         self.original_image.configure(image=self.source_image_frame)
 
         self.codification.configure(**self.variable_to_dict(self.codification_options))
-        self.codification.steps(self.steps_frame)
+        self.place_steps(self.codification.steps(self.steps_frame))
         self.results = self.codification(self.image)
 
         self.codified_image.configure(
@@ -220,7 +240,11 @@ class App(ctk.CTk):
                 raise ValueError(f"Invalid option type: {value['type']}")
 
             self.codification_options[key] = var
-                
+    
+    def place_steps(self, steps: list):            
+        for i, step in enumerate(steps):
+            step.grid(row=i, column=0, sticky="nsew", padx=10, pady=10)
+    
     def clear_results_tab(self):
         for widget in self.steps_frame.winfo_children():
             widget.destroy()
