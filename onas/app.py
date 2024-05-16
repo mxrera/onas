@@ -1,7 +1,9 @@
+import os
 import customtkinter as ctk
 from tkinter import filedialog
 from jpeg import JPEG
 from constants import BG_COLOR, FG_COLOR, HIGHLIGHT_COLOR
+from PIL import Image
 
 class App(ctk.CTk):
     def __init__(self):
@@ -15,10 +17,9 @@ class App(ctk.CTk):
         self.grid_rowconfigure(0, weight=1)
 
         self.image = None
+        self.source_image_frame = None
         self.codification = None
         self.codification_options = {}
-        self.options_list = []
-        self.codification_steps = []
         self.results = {}
 
         self.__init_navbar()
@@ -46,11 +47,19 @@ class App(ctk.CTk):
         self.tabview.tab("settings").grid_rowconfigure(6, weight=1, uniform="a")
 
         ctk.CTkLabel(self.tabview.tab("settings"), text="Settings").grid(row=0, column=0, sticky=ctk.W + ctk.E)
-        ctk.CTkLabel(self.tabview.tab("settings"), text="Image").grid(row=1, column=0, sticky=ctk.W + ctk.E + ctk.N + ctk.S)
+        placeholder_path = os.path.join(
+            os.path.dirname(__file__), "../images/placeholder.png")
+        placeholder_image = ctk.CTkImage(Image.open(placeholder_path), size=(95, 84))
+        self.image_preview = ctk.CTkLabel(
+            self.tabview.tab("settings"),
+            text="",
+            image=placeholder_image
+        )
+        self.image_preview.grid(row=1, column=0, sticky=ctk.W + ctk.E + ctk.N + ctk.S)
         ctk.CTkButton(
             self.tabview.tab("settings"),
             command=self.on_image_select,
-            text="Select",
+            text="Select Image",
             fg_color=BG_COLOR
         ).grid(row=2, column=0, sticky=ctk.W + ctk.E)
         
@@ -80,6 +89,7 @@ class App(ctk.CTk):
         ctk.CTkLabel(self.tabview.tab("results"), text="Results").grid(row=0, column=0, sticky=ctk.W + ctk.E)
         self.results_frame = ctk.CTkScrollableFrame(self.tabview.tab("results"), fg_color=FG_COLOR)        
         self.results_frame.grid(row=1, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
+        self.results_frame.grid_columnconfigure(0, weight=1, uniform="a")
 
     def __init_main_frame(self):
         self.main_frame = ctk.CTkFrame(self, fg_color=BG_COLOR)
@@ -90,8 +100,13 @@ class App(ctk.CTk):
 
         image_comparison_frame = ctk.CTkFrame(self.main_frame, fg_color=BG_COLOR, corner_radius=0)
         image_comparison_frame.grid(row=0, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
-        self.original_image = ctk.CTkFrame(image_comparison_frame, fg_color=FG_COLOR)
-        self.codified_image = ctk.CTkFrame(image_comparison_frame, fg_color=FG_COLOR)
+        image_comparison_frame.grid_columnconfigure(0, weight=1, uniform="a")
+        image_comparison_frame.grid_columnconfigure(1, weight=1, uniform="a")
+        image_comparison_frame.grid_rowconfigure(0, weight=1, uniform="a")
+        self.original_image = ctk.CTkLabel(image_comparison_frame, fg_color=FG_COLOR, text="")
+        self.original_image.grid(row=0, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W, padx=15, pady=15)
+        self.codified_image = ctk.CTkLabel(image_comparison_frame, fg_color=FG_COLOR, text="")
+        self.codified_image.grid(row=0, column=1, sticky=ctk.N + ctk.E + ctk.S + ctk.W, padx=15, pady=15)
 
         self.steps_frame = ctk.CTkScrollableFrame(
             self.main_frame,
@@ -102,8 +117,21 @@ class App(ctk.CTk):
         self.steps_frame.grid_columnconfigure(0, weight=1, uniform="a")
 
     def on_image_select(self):
-        file_path = filedialog.askopenfilename()
-    
+        file_path = filedialog.askopenfilename(
+            title="Select an image",
+            filetypes=[
+                ("Image files", "*.jpg *.jpeg *.png *.bmp"),
+                ("All files", "*.*")
+            ]
+        )
+        if file_path:
+            self.image = Image.open(file_path)
+            self.source_image_frame = ctk.CTkImage(
+                self.image,
+                size=(210, self.image.height * 210 // self.image.width)
+            )
+            self.image_preview.configure(image=self.source_image_frame)
+
     def on_codification_select(self, codification):
         if codification == "JPEG":
             self.codification = JPEG()
@@ -111,19 +139,29 @@ class App(ctk.CTk):
 
     def on_run(self):
         if self.image is None or self.codification is None:
-            self.codification_steps = self.codification.steps(self.steps_frame)
             return
-        
-        self.codification.configure(self.variable_to_dict(self.codification_options))
-        self.codification_steps = self.codification.steps(self.steps_frame)
+        self.clear_results_tab()
+
+        self.tabview.set("results")
+        self.source_image_frame.configure(size=(341, self.image.height * 341 // self.image.width))
+        self.original_image.configure(image=self.source_image_frame)
+
+        self.codification.configure(**self.variable_to_dict(self.codification_options))
+        self.codification.steps(self.steps_frame)
         self.results = self.codification(self.image)
+
+        self.codified_image.configure(
+            image=ctk.CTkImage(
+                self.results["image"],
+                size=(341, self.results["image"].height * 341 // self.results["image"].width)
+            )
+        )
         self.fill_results()
 
     def fill_codification_options(self, options: dict):
         # Clean previous options
-        for option in self.options_list:
+        for option in self.options_frame.winfo_children():
             option.destroy()
-        self.options_list = []
         self.codification_options = {}
 
         # Create new options
@@ -134,7 +172,7 @@ class App(ctk.CTk):
                 corner_radius=5,
                 fg_color=BG_COLOR
             )
-            option_frame.grid(row=len(self.options_list), column=0, sticky=ctk.W + ctk.E, pady=5, padx=5)
+            option_frame.grid(row=len(self.options_frame.winfo_children()), column=0, sticky=ctk.W + ctk.E, pady=5, padx=5)
             option_frame.grid_columnconfigure(1, weight=1, uniform="a")
             option_frame.grid_rowconfigure(0, weight=1, uniform="a")
             option_frame.grid_rowconfigure(1, weight=1, uniform="a")
@@ -182,22 +220,26 @@ class App(ctk.CTk):
                 raise ValueError(f"Invalid option type: {value['type']}")
 
             self.codification_options[key] = var
-            self.options_list.append(option_frame)
                 
-    def fill_results(self):
+    def clear_results_tab(self):
+        for widget in self.steps_frame.winfo_children():
+            widget.destroy()
         for widget in self.results_frame.winfo_children():
             widget.destroy()
 
+    def fill_results(self):
         for key, value in self.results.items():
-            ctk.CTkLabel(self.results_frame, text=key, fg_color=BG_COLOR)
-            ctk.CTkLabel(self.results_frame, text=value, fg_color=BG_COLOR)
-
-        for widget in self.steps_frame.winfo_children():
-            widget.destroy()
-
-        for step in self.codification_steps:
-            ctk.CTkLabel(self.results_frame, text=step.name, fg_color=BG_COLOR).pack()
-            ctk.CTkLabel(self.results_frame, text=step.description, fg_color=BG_COLOR).pack()
+            result_frame = ctk.CTkFrame(
+                self.results_frame,
+                fg_color=FG_COLOR,
+                corner_radius=5
+            )
+            result_frame.grid(row=len(self.results_frame.winfo_children()), column=0, sticky=ctk.W + ctk.E, pady=5, padx=5)
+            result_frame.grid_columnconfigure(0, weight=1, uniform="a")
+            result_frame.grid_columnconfigure(1, weight=1, uniform="a")
+            result_frame.grid_rowconfigure(0, weight=1, uniform="a")
+            ctk.CTkLabel(result_frame, text=key, fg_color=FG_COLOR).grid(row=0, column=0, sticky=ctk.W + ctk.E)
+            ctk.CTkLabel(result_frame, text=str(value), fg_color=FG_COLOR).grid(row=0, column=1, sticky=ctk.W + ctk.E)
         
     def variable_to_dict(self, variables: dict) -> dict:
         return {key: value.get() for key, value in variables.items()}
