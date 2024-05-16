@@ -1,6 +1,7 @@
+import numpy as np
+
 from steps import StepsFrame
 from metrics import snr
-import numpy as np
 
 class JPEG:
     def __init__(self):
@@ -31,6 +32,17 @@ class JPEG:
         }
     
     def steps(self, steps_parent) -> list:
+        """
+        Create the steps for the JPEG compression algorithm. The steps are
+        described in a list of StepsFrame objects that can be displayed in
+        the GUI.
+
+        Args:
+            steps_parent: The parent frame to place the steps
+        Returns:
+            A list of StepsFrame objects
+        """
+
         self.codification_steps = [ 
             StepsFrame(
                 name="Block creation",
@@ -80,52 +92,163 @@ class JPEG:
                             and the previous coefficient, are encoded using Huffman encoding and the AC Huffman table",
             ),
         ]
-        for i, step in enumerate(self.codification_steps):
-            step.grid(row=i, column=0, sticky="nsew", padx=10, pady=10)
-
         return self.codification_steps
     
-    def configure(self, **kwargs):
-        self.fft_algorithm = kwargs.get("Transform", "DCT")
-        self.quantization_factor = kwargs.get("Quantization Factor", 1)
+    def configure(self, **kwargs) -> None:
+        """
+        Configure the JPEG compression algorithm with the selected options
+        
+        Args:
+            **kwargs: The selected options
+        """
+        self.fft_algorithm = str(kwargs.get("Transform", "DCT"))
+        self.quantization_factor = float(kwargs.get("Quantization Factor", 1))
         self.block_size = int(kwargs.get("Block Size", "8"))
+    
+    def is_standard(self):
+        """
+        Check if the selected transform is the Discrete Cosine Transform (DCT),
+        so that the image can be saved.
 
-    def __call__(self, image):
-        self.blocks = self.create_blocks(image, self.block_size)
-        self.transformed_blocks = self.transform_blocks(self.blocks)
-        self.quantized_blocks = self.quantize_blocks(self.transformed_blocks)
-        self.encoded_blocks = self.encode_blocks(self.quantized_blocks)
-        self.reconstructed_image = self.reconstruct_image(self.encoded_blocks)
+        Returns:
+            True if the transform is DCT, False otherwise
+        """
+        return self.fft_algorithm == "DCT"
+
+    def __call__(self, image) -> dict:
+        """
+        Main method to do the JPEG compression
+
+        Args:
+            image: The image to compress
+        Returns:
+            A dictionary with the reconstructed image, the encoded image and
+            the metrics
+        """
+        blocks = self.create_blocks(image, self.block_size)
+        transformed_blocks = self.transform_blocks(blocks)
+        quantized_blocks = self.quantize_blocks(transformed_blocks)
+        encoded_image = self.encode(quantized_blocks)
+        reconstructed_image = self.decode_image(encoded_image)
+        
         return {
-            "image": self.reconstructed_image,
-            "snr": snr(image, self.reconstructed_image)
+            "image": reconstructed_image,
+            "encoded_image": encoded_image,
+            "metrics": {
+                "snr": snr(image, reconstructed_image)
+            }
         }
 
     def create_blocks(self, image, block_size):
+        """
+        Create blocks of the specified size from the image
+
+        Args:
+            image: The image to divide into blocks
+            block_size: The size of the blocks
+        Returns:
+            A list of blocks
+        """
         # Usage example of steps plotting
         plot = self.codification_steps[0].get_plot()
         t = np.arange(0, 3, .01)
         plot.plot(t, 2 * np.sin(2 * np.pi * t))
         self.codification_steps[0].udpate_plot()
-        pass
+        ...
 
     def transform_blocks(self, blocks):
+        """
+        Transform the blocks using the selected algorithm
+
+        Args:
+            blocks: The blocks to transform
+        Returns:
+            The transformed blocks
+        """
         return [self.fft_options[self.fft_algorithm](block) for block in blocks]
 
     def dct(self, block):
-        pass
+        """
+        Apply the Discrete Cosine Transform to the block.
+
+        The DCT is the most commonly used transform for image compression, 
+        as it is energypreserving and the coefficients are real numbers. 
+        The DCT is used in JPEG compression.
+
+        Args:
+            block: The block to transform
+        Returns:
+            The transformed block
+        """
+        ...
 
     def klt(self, block):
-        pass
+        """
+        Apply the Karhunen-Loeve Transform to the block.
+
+        The KLT is the optimal transform for a given image, as it minimizes the energy
+        of the coefficients. However, the KLT is not used in practice as the base depends
+        on the image and needs to be sent to the receiver. 
+        
+        If KLT is selected the image cannot be saved as the bases are not known.
+
+        Args:
+            block: The block to transform
+        Returns:
+            The transformed block
+        """
+        ...
 
     def fft(self, block):
-        pass
+        """
+        Apply the Fast Fourier Transform to the block.
+
+        Note that using the FFT is not the best option for image compression, as the FFT
+        is not energy preserving and the coefficients are complex numbers. However, it is
+        a good option for demonstration purposes.
+
+        Args:
+            block: The block to transform
+        Returns:
+            The transformed block
+        """
+        ...
 
     def quantize_blocks(self, blocks):
-        pass
+        """
+        Quantize the transformed blocks using the quantization factor
 
-    def encode_blocks(self, blocks):
-        pass
+        Args:
+            blocks: The transformed blocks
+        Returns:
+            The quantized blocks
+        """
+        ...
+    
+    def encode(self, blocks):
+        """
+        Encode the DC and AC coefficients of the image
+        """
+        if not self.is_standard():
+            return None
+        ...
 
-    def reconstruct_image(self, blocks):
-        pass
+    def decode_image(self, encoded_image):
+        """
+        Decode the DC and AC coefficients of the image and return the reconstructed image
+
+        Args:
+            encoded_image: The encoded image
+        Returns:
+            The reconstructed image
+        """
+        ...
+
+    def save_image(self, image, filename: str):
+        """
+        Save the image to the specified filename
+        """
+        if not self.is_standard():
+            raise ValueError("Cannot save image when using a different transform than DCT")
+        ...
+
