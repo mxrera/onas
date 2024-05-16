@@ -1,5 +1,6 @@
 from steps import StepsFrame
 from metrics import snr
+import numpy as np
 
 class JPEG:
     def __init__(self):
@@ -8,6 +9,7 @@ class JPEG:
             "KLT": self.klt,
             "FFT": self.fft
         }
+        self.codification_steps = []
     
     def options(self) -> dict:
         return {
@@ -29,7 +31,7 @@ class JPEG:
         }
     
     def steps(self, steps_parent) -> list:
-        return [
+        self.codification_steps = [ 
             StepsFrame(
                 name="Block creation",
                 parent=steps_parent,
@@ -78,6 +80,10 @@ class JPEG:
                             and the previous coefficient, are encoded using Huffman encoding and the AC Huffman table",
             ),
         ]
+        for i, step in enumerate(self.codification_steps):
+            step.grid(row=i, column=0, sticky="nsew", padx=10, pady=10)
+
+        return self.codification_steps
     
     def configure(self, **kwargs):
         self.fft_algorithm = kwargs.get("Transform", "DCT")
@@ -96,6 +102,11 @@ class JPEG:
         }
 
     def create_blocks(self, image, block_size):
+        # Usage example of steps plotting
+        plot = self.codification_steps[0].get_plot()
+        t = np.arange(0, 3, .01)
+        plot.plot(t, 2 * np.sin(2 * np.pi * t))
+        self.codification_steps[0].udpate_plot()
         pass
 
     def transform_blocks(self, blocks):

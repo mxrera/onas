@@ -68,7 +68,7 @@ class App(ctk.CTk):
             fg_color=FG_COLOR
         )
         self.options_frame.grid(row=5, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
-        self.options_frame.grid_columnconfigure(0, weight=1)
+        self.options_frame.grid_columnconfigure(0, weight=1, uniform="a")
 
         ctk.CTkButton(self.tabview.tab("settings"), text="run", command=self.on_run, fg_color=HIGHLIGHT_COLOR).grid(row=6, column=0, sticky=ctk.W + ctk.E)
 
@@ -93,8 +93,13 @@ class App(ctk.CTk):
         self.original_image = ctk.CTkFrame(image_comparison_frame, fg_color=FG_COLOR)
         self.codified_image = ctk.CTkFrame(image_comparison_frame, fg_color=FG_COLOR)
 
-        self.steps_frame = ctk.CTkScrollableFrame(self.main_frame, fg_color=BG_COLOR, corner_radius=0)
+        self.steps_frame = ctk.CTkScrollableFrame(
+            self.main_frame,
+            fg_color=BG_COLOR,
+            corner_radius=0
+        )
         self.steps_frame.grid(row=1, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
+        self.steps_frame.grid_columnconfigure(0, weight=1, uniform="a")
 
     def on_image_select(self):
         file_path = filedialog.askopenfilename()
@@ -106,6 +111,7 @@ class App(ctk.CTk):
 
     def on_run(self):
         if self.image is None or self.codification is None:
+            self.codification_steps = self.codification.steps(self.steps_frame)
             return
         
         self.codification.configure(self.variable_to_dict(self.codification_options))
