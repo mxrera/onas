@@ -1,26 +1,36 @@
 import os
+import numpy as np
+
 import customtkinter as ctk
 from tkinter import filedialog
+
 from jpeg import JPEG
 from constants import BG_COLOR, FG_COLOR, HIGHLIGHT_COLOR
 from PIL import Image
 
 class App(ctk.CTk):
+
     def __init__(self):
         super().__init__(fg_color=BG_COLOR)
 
-        # Window settings
         self.title("Onas")
         self.geometry("1024x768")
+        self.grid_rowconfigure(0, weight=1)
         self.grid_columnconfigure(0, weight=1, uniform="a")
         self.grid_columnconfigure(1, weight=3, uniform="a")
-        self.grid_rowconfigure(0, weight=1)
 
         self.image = None
-        self.source_image_frame = None
         self.codification = None
         self.codification_options = {}
         self.results = {}
+
+        self.tabview = None
+        self.image_preview = None
+        self.original_image = None
+        self.codified_image = None
+        self.options_frame = None
+        self.results_frame = None
+        self.steps_frame = None
 
         self.__init_navbar()
         self.__init_settings_tab()
@@ -88,7 +98,7 @@ class App(ctk.CTk):
         self.tabview.tab("results").grid_rowconfigure(2, weight=1)
 
         ctk.CTkLabel(self.tabview.tab("results"), text="Results").grid(row=0, column=0, sticky=ctk.W + ctk.E)
-        self.results_frame = ctk.CTkScrollableFrame(self.tabview.tab("results"), fg_color=FG_COLOR)        
+        self.results_frame = ctk.CTkScrollableFrame(self.tabview.tab("results"), fg_color=FG_COLOR)
         self.results_frame.grid(row=1, column=0, sticky=ctk.N + ctk.E + ctk.S + ctk.W)
         self.results_frame.grid_columnconfigure(0, weight=1, uniform="a")
         ctk.CTkButton(
@@ -133,11 +143,12 @@ class App(ctk.CTk):
         )
         if file_path:
             self.image = Image.open(file_path)
-            self.source_image_frame = ctk.CTkImage(
-                self.image,
-                size=(210, self.image.height * 210 // self.image.width)
-            )
-            self.image_preview.configure(image=self.source_image_frame)
+            self.image_preview.configure(
+                image=ctk.CTkImage(
+                    self.image,
+                    size=(210, self.image.height * 210 // self.image.width)
+                )
+            )                           
     
     def on_save_image(self):
         if self.results.get("image") is None:
@@ -163,12 +174,16 @@ class App(ctk.CTk):
         self.clear_results_tab()
 
         self.tabview.set("results")
-        self.source_image_frame.configure(size=(341, self.image.height * 341 // self.image.width))
-        self.original_image.configure(image=self.source_image_frame)
+        self.original_image.configure(
+            image=ctk.CTkImage(
+                self.image,
+                size=(341, self.image.height * 341 // self.image.width)
+            )
+        )
 
         self.codification.configure(**self.variable_to_dict(self.codification_options))
         self.place_steps(self.codification.steps(self.steps_frame))
-        self.results = self.codification(self.image)
+        self.results = self.codification(np.array(self.image))
 
         self.codified_image.configure(
             image=ctk.CTkImage(
