@@ -37,6 +37,7 @@ class StepsFrame(ctk.CTkFrame):
             fg_color=FG_COLOR,
             font=PARAGRAPH_FONT,
             text_color=FONT_COLOR,
+            wrap="word",
         )
         self.description.grid(row=1, column=1, sticky=ctk.N + ctk.S + ctk.E + ctk.W, padx=10, pady=10)
         self.description.insert("0.0", self.remove_spaces(description))
