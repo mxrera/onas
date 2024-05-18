@@ -4,6 +4,8 @@ import math
 from steps import StepsFrame
 from metrics import snr
 
+import matplotlib.pyplot as plt
+
 class JPEG:
     def __init__(self):
         self.fft_options = {
@@ -127,6 +129,7 @@ class JPEG:
             the metrics
         """
         blocks = self.create_blocks(image, self.block_size)
+        return dict()
         transformed_blocks = self.transform_blocks(blocks)
         quantized_blocks = self.quantize_blocks(transformed_blocks)
         encoded_image = self.encode(quantized_blocks)
@@ -150,12 +153,18 @@ class JPEG:
         Returns:
             A list of blocks
         """
-        # Usage example of steps plotting
-        plot = self.codification_steps[0].get_plot()
-        t = np.arange(0, 3, .01)
-        plot.plot(t, 2 * np.sin(2 * np.pi * t))
-        self.codification_steps[0].udpate_plot()
-        ...
+        blocks = []
+        for i in range(0, image.shape[0], block_size):
+            for j in range(0, image.shape[1], block_size):
+                blocks.append(image[i:i+block_size, j:j+block_size])
+        
+        for i in range(9):
+            plot = self.codification_steps[0].get_plot(3, 3, i+1)
+            plot.imshow(blocks[len(blocks)//2 + i], cmap='gray')
+            plot.axis('off')
+        self.codification_steps[0].update_plot()
+        
+        return blocks
 
     def transform_blocks(self, blocks):
         """
@@ -181,11 +190,9 @@ class JPEG:
         Returns:
             The transformed block
         """
-        dct = []
-        m, n = 8
+        m, n = 8, 8
+        dct = [[ 0 for _ in range(n)] for _ in range(m)]
         pi = math.pi
-        for i in range(m):
-            dct.append([None for _ in range(n)])
         
         for i in range(m):
             for j in range(n):
