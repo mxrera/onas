@@ -49,10 +49,13 @@ class StepsFrame(ctk.CTkFrame):
         self.canvas = FigureCanvasTkAgg(self.fig, master=self)
         self.canvas.get_tk_widget().place(relx=0.05, rely=0.15)
     
-    def get_plot(self):
-        return self.fig.add_subplot(111)
+    def get_plot(self, *args):
+        if len(args) == 0:
+            return self.fig.add_subplot(111)
+        
+        return self.fig.add_subplot(*args)
     
-    def udpate_plot(self):
+    def update_plot(self):
         self.canvas.draw()
 
     def remove_spaces(self, text: str) -> str:

@@ -139,7 +139,8 @@ class App(ctk.CTk):
             filetypes=[
                 ("Image files", "*.jpg *.jpeg *.png *.bmp"),
                 ("All files", "*.*")
-            ]
+            ],
+            initialdir=os.path.join(os.path.dirname(__file__), "../samples")
         )
         if file_path:
             self.image = Image.open(file_path)
