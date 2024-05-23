@@ -26,8 +26,10 @@ class App(ctk.CTk):
 
         self.tabview = None
         self.image_preview = None
+        self.image_preview_size = (210, 133)
         self.original_image = None
         self.codified_image = None
+        self.result_images_size = (341, 213)
         self.options_frame = None
         self.results_frame = None
         self.steps_frame = None
@@ -63,7 +65,9 @@ class App(ctk.CTk):
         self.image_preview = ctk.CTkLabel(
             self.tabview.tab("settings"),
             text="",
-            image=placeholder_image
+            image=placeholder_image,
+            width=self.image_preview_size[0],
+            height=self.image_preview_size[1]
         )
         self.image_preview.grid(row=1, column=0, sticky=ctk.W + ctk.E + ctk.N + ctk.S)
         ctk.CTkButton(
@@ -143,11 +147,11 @@ class App(ctk.CTk):
             initialdir=os.path.join(os.path.dirname(__file__), "../samples")
         )
         if file_path:
-            self.image = Image.open(file_path)
+            self.image = Image.open(file_path).convert('L')
             self.image_preview.configure(
                 image=ctk.CTkImage(
                     self.image,
-                    size=(210, self.image.height * 210 // self.image.width)
+                    size=(self.image.width * self.image_preview_size[1] // self.image.height, self.image_preview_size[1])
                 )
             )                           
     
@@ -178,7 +182,7 @@ class App(ctk.CTk):
         self.original_image.configure(
             image=ctk.CTkImage(
                 self.image,
-                size=(341, self.image.height * 341 // self.image.width)
+                size=(self.result_images_size[0], self.image.height * self.result_images_size[0] // self.image.width)
             )
         )
 
@@ -189,7 +193,7 @@ class App(ctk.CTk):
         self.codified_image.configure(
             image=ctk.CTkImage(
                 self.results["image"],
-                size=(341, self.results["image"].height * 341 // self.results["image"].width)
+                size=(self.result_images_size[0], self.results["image"].shape[0] * self.result_images_size[0] // self.results["image"].shape[1])
             )
         )
         self.fill_results()
@@ -268,7 +272,7 @@ class App(ctk.CTk):
             widget.destroy()
 
     def fill_results(self):
-        for key, value in self.results.items():
+        for key, value in self.results["metrics"].items():
             result_frame = ctk.CTkFrame(
                 self.results_frame,
                 fg_color=FG_COLOR,
