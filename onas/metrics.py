@@ -1,4 +1,7 @@
 import numpy as np
 
-def snr(original, coded):
-    return 10 * np.log10(np.sum(original**2) / np.sum((original - coded)**2))
+def psnr(original, coded):
+    mse = np.mean((original - coded) ** 2)
+    if mse == 0:
+        return float('inf')
+    return round(10 * np.log10(255**2 / mse), 2)
