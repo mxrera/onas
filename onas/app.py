@@ -166,7 +166,7 @@ class App(ctk.CTk):
             ]
         )
         if file_path:
-            self.codification.save_image(self.results["image"], file_path)
+            self.codification.save_image(self.results["data"], file_path)
 
     def on_codification_select(self, codification):
         if codification == "JPEG":
@@ -192,7 +192,7 @@ class App(ctk.CTk):
 
         self.codified_image.configure(
             image=ctk.CTkImage(
-                self.results["image"],
+                Image.fromarray(self.results["image"]),
                 size=(self.result_images_size[0], self.results["image"].shape[0] * self.result_images_size[0] // self.results["image"].shape[1])
             )
         )
