@@ -1,12 +1,16 @@
+#! /usr/bin/python3
+
 import os
 import numpy as np
+from PIL import Image
 
 import customtkinter as ctk
 from tkinter import filedialog
 
-from jpeg import JPEG
-from constants import BG_COLOR, FG_COLOR, HIGHLIGHT_COLOR
-from PIL import Image
+from onas.gui import BG_COLOR, FG_COLOR, HIGHLIGHT_COLOR
+from onas.utils import execute_all_metrics
+from onas.codecs import JPEG
+
 
 class App(ctk.CTk):
 
@@ -20,9 +24,9 @@ class App(ctk.CTk):
         self.grid_columnconfigure(1, weight=3, uniform="a")
 
         self.image = None
+        self.image_path = None
         self.codification = None
         self.codification_options = {}
-        self.results = {}
 
         self.tabview = None
         self.image_preview = None
@@ -60,7 +64,7 @@ class App(ctk.CTk):
 
         ctk.CTkLabel(self.tabview.tab("settings"), text="Settings").grid(row=0, column=0, sticky=ctk.W + ctk.E)
         placeholder_path = os.path.join(
-            os.path.dirname(__file__), "../images/placeholder.png")
+            os.path.dirname(__file__), "./images/placeholder.png")
         placeholder_image = ctk.CTkImage(Image.open(placeholder_path), size=(95, 84))
         self.image_preview = ctk.CTkLabel(
             self.tabview.tab("settings"),
@@ -138,16 +142,16 @@ class App(ctk.CTk):
         self.steps_frame.grid_columnconfigure(0, weight=1, uniform="a")
 
     def on_image_select(self):
-        file_path = filedialog.askopenfilename(
+        self.image_path = filedialog.askopenfilename(
             title="Select an image",
             filetypes=[
                 ("Image files", "*.jpg *.jpeg *.png *.bmp"),
                 ("All files", "*.*")
             ],
-            initialdir=os.path.join(os.path.dirname(__file__), "../samples")
+            initialdir=os.path.join(os.path.dirname(__file__), "./samples")
         )
-        if file_path:
-            self.image = Image.open(file_path).convert('L')
+        if self.image_path:
+            self.image = Image.open(self.image_path).convert('L')
             self.image_preview.configure(
                 image=ctk.CTkImage(
                     self.image,
@@ -156,7 +160,8 @@ class App(ctk.CTk):
             )                           
     
     def on_save_image(self):
-        if self.results.get("image") is None:
+        if not self.image_path:
+            # Dialog to print error
             return
         file_path = filedialog.asksaveasfilename(
             title="Save image",
@@ -166,7 +171,11 @@ class App(ctk.CTk):
             ]
         )
         if file_path:
-            self.codification.save_image(self.results["data"], file_path)
+            try:
+                self.codification(self.image_path, file_path)
+            except Exception as e:
+                # Dialog to print error
+                return
 
     def on_codification_select(self, codification):
         if codification == "JPEG":
@@ -174,7 +183,7 @@ class App(ctk.CTk):
             self.fill_codification_options(self.codification.options())
 
     def on_run(self):
-        if self.image is None or self.codification is None:
+        if self.image_path is None or self.codification is None:
             return
         self.clear_results_tab()
 
@@ -186,17 +195,17 @@ class App(ctk.CTk):
             )
         )
 
-        self.codification.configure(**self.variable_to_dict(self.codification_options))
+        self.codification.configure(**self.tkvar_to_dict(self.codification_options))
         self.place_steps(self.codification.steps(self.steps_frame))
-        self.results = self.codification(np.array(self.image))
+        coded_image = self.codification(self.image_path)
 
         self.codified_image.configure(
             image=ctk.CTkImage(
-                Image.fromarray(self.results["image"]),
-                size=(self.result_images_size[0], self.results["image"].shape[0] * self.result_images_size[0] // self.results["image"].shape[1])
+                Image.fromarray(coded_image),
+                size=(self.result_images_size[0], coded_image.shape[0] * self.result_images_size[0] // coded_image.shape[1])
             )
         )
-        self.fill_results()
+        self.fill_results(coded_image)
 
     def fill_codification_options(self, options: dict):
         # Clean previous options
@@ -271,8 +280,9 @@ class App(ctk.CTk):
         for widget in self.results_frame.winfo_children():
             widget.destroy()
 
-    def fill_results(self):
-        for key, value in self.results["metrics"].items():
+    def fill_results(self, coded):
+        metrics = execute_all_metrics(np.array(self.image), coded)
+        for key, value in metrics.items():
             result_frame = ctk.CTkFrame(
                 self.results_frame,
                 fg_color=FG_COLOR,
@@ -285,7 +295,16 @@ class App(ctk.CTk):
             ctk.CTkLabel(result_frame, text=key, fg_color=FG_COLOR).grid(row=0, column=0, sticky=ctk.W + ctk.E)
             ctk.CTkLabel(result_frame, text=str(value), fg_color=FG_COLOR).grid(row=0, column=1, sticky=ctk.W + ctk.E)
         
-    def variable_to_dict(self, variables: dict) -> dict:
+    def tkvar_to_dict(self, variables) -> dict:
+        """
+        Convert a dictionary of tkinter variables to a dictionary of python values
+        
+        Args:
+            variables (dict): Dictionary of tkinter variables
+
+        Returns:
+            dict: Dictionary of python values
+        """
         return {key: value.get() for key, value in variables.items()}
 
 

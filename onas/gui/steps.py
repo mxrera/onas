@@ -6,8 +6,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 import numpy as np
 
-from constants import (
-    FG_COLOR, FONT_COLOR, FONT_COLOR, PARAGRAPH_FONT, BG_COLOR)
+from onas.gui import FG_COLOR, FONT_COLOR, FONT_COLOR, PARAGRAPH_FONT, BG_COLOR
 
 class StepsFrame(ctk.CTkFrame):
     def __init__(self, name: str, parent, description: str):
