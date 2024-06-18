@@ -1,18 +1,20 @@
 import math
 import numpy as np
-
-from onas.gui import StepsFrame
+import struct as st
 
 from scipy.fftpack import dct, idct
 import matplotlib.pyplot as plt
 from PIL import Image
+
+from onas.gui import StepsFrame
+
 
 class JPEG:
     def __init__(self):
         """
         Initialize the JPEG compression algorithm
         """
-        self.quantization_table = [
+        self.quantization_table = np.array([
             [16, 11, 10, 16, 24, 40, 51, 61],
             [12, 12, 14, 19, 26, 58, 60, 55],
             [14, 13, 16, 24, 40, 57, 69, 56],
@@ -21,8 +23,19 @@ class JPEG:
             [24, 35, 55, 64, 81, 104, 113, 92],
             [49, 64, 78, 87, 103, 121, 120, 101],
             [72, 92, 95, 98, 112, 100, 103, 99]
-        ]
+        ])
         self.codification_steps = None
+
+        self.zig_zag_order = {
+            0: (0, 0), 1:(0, 1), 5:(0, 2), 6:(0, 3), 14:(0, 4), 15:(0, 5), 27:(0, 6), 28:(0, 7),
+            2: (1, 0), 4:(1, 1), 7:(1, 2), 13:(1, 3), 16:(1, 4), 26:(1, 5), 29:(1, 6), 42:(1, 7),
+            3: (2, 0), 8:(2, 1), 12:(2, 2), 17:(2, 3), 25:(2, 4), 30:(2, 5), 41:(2, 6), 43:(2, 7),
+            9: (3, 0), 11:(3, 1), 18:(3, 2), 24:(3, 3), 31:(3, 4), 40:(3, 5), 44:(3, 6), 53:(3, 7),
+            10:(4, 0), 19:(4, 1), 23:(4, 2), 32:(4, 3), 39:(4, 4), 45:(4, 5), 52:(4, 6), 54:(4, 7),
+            20:(5, 0), 22:(5, 1), 33:(5, 2), 38:(5, 3), 46:(5, 4), 51:(5, 5), 55:(5, 6), 60:(5, 7),
+            21:(6, 0), 34:(6, 1), 37:(6, 2), 47:(6, 3), 50:(6, 4), 56:(6, 5), 59:(6, 6), 61:(6, 7),
+            35:(7, 0), 36:(7, 1), 48:(7, 2), 49:(7, 3), 57:(7, 4), 58:(7, 5), 62:(7, 6), 63:(7, 7)
+        }
     
     def options(self) -> dict:
         """
@@ -305,11 +318,75 @@ class JPEG:
         """
         return idct(idct(transformed_block, axis=0, norm='ortho'), axis=1, norm='ortho')
 
-    def _encode(self, blocks):
+    def _encode(self, quantized_blocks):
         """
         Encode the DC and AC coefficients of the image
         """
-        ...
+        previous_DC = 0
+        for quantized_block in quantized_blocks:
+            zig_zag_block = self._zig_zag_scan(quantized_block)
+            # DC encoding
+            DC = zig_zag_block.pop(0)
+            DC_diff = DC - previous_DC
+            previous_DC = DC
+
+            # AC encoding
+            self._run_length_encode(zig_zag_block)
+
+            
+    def _zig_zag_scan(self, block):
+        """
+        Scan the block in a zig-zag pattern
+
+        Args:
+            block: The block to scan
+        Returns:
+            The scanned block
+        """
+        return np.array([block[self.zig_zag_order[i]] for i in range(self.block_size ** 2)])
+    
+    def _run_length_encode(self, block):
+        """
+        Run-length encode the AC coefficients of the block
+
+        Args:
+            block: The block to encode
+        Returns:
+            The encoded AC coefficients
+        """
+        def bits_required(n):
+            return n.bit_length()
+        
+        def int_to_bin(n):
+            if n == 0:
+                return ''
+            ret = bin(n)[2:]
+            return ret if n > 0 else ''.join(['1' if x == '0' else '0' for x in ret])
+        
+        last_non_zero = -1
+        for i, coeff in enumerate(block):
+            if coeff != 0:
+                last_non_zero = i
+        
+        symbols = [] # (runlength, size)
+        values = []
+        run_length = 0
+        for i, coeff in enumerate(block):
+            if i <= last_non_zero:
+                # Encode the coefficient
+                if coeff == 0 and run_length < 15:
+                    run_length += 1
+                    continue
+                symbols.append((run_length, bits_required(coeff)))
+                values.append(int_to_bin(coeff))
+                run_length = 0
+            else:
+                # End of block
+                symbols.append((0,0))
+                values.append(int_to_bin(0))
+                break
+        return symbols, values
+
 
     def _decode_image(self, encoded_blocks, image_shape):
         """
@@ -339,4 +416,7 @@ class JPEG:
             raise ValueError("Cannot save image when the block size is not 8x8")
 
         data = self._encode(blocks)
+        # Start Of Image
+        # Frame
+        # End Of Image
         ...

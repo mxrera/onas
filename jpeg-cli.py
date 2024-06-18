@@ -14,9 +14,9 @@ if __name__ == "__main__":
         {sys.argv[0]} --version
     
     Options:
-        -h --help     Show this screen.
-        --version     Show version.
-        --factor=<f>  Compression factor [default: 1].
+        -h --help             Show this screen.
+        --version             Show version.
+        -k <k>, --factor=<k>  Compression factor [default: 1].
     """
     args = docopt(usage, help=True, version="0.1")
 
