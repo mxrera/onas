@@ -27,14 +27,24 @@ class JPEG:
         self.codification_steps = None
 
         self.zig_zag_order = {
-            0: (0, 0), 1:(0, 1), 5:(0, 2), 6:(0, 3), 14:(0, 4), 15:(0, 5), 27:(0, 6), 28:(0, 7),
-            2: (1, 0), 4:(1, 1), 7:(1, 2), 13:(1, 3), 16:(1, 4), 26:(1, 5), 29:(1, 6), 42:(1, 7),
-            3: (2, 0), 8:(2, 1), 12:(2, 2), 17:(2, 3), 25:(2, 4), 30:(2, 5), 41:(2, 6), 43:(2, 7),
-            9: (3, 0), 11:(3, 1), 18:(3, 2), 24:(3, 3), 31:(3, 4), 40:(3, 5), 44:(3, 6), 53:(3, 7),
+             0:(0, 0),  1:(0, 1),  5:(0, 2),  6:(0, 3), 14:(0, 4), 15:(0, 5), 27:(0, 6), 28:(0, 7),
+             2:(1, 0),  4:(1, 1),  7:(1, 2), 13:(1, 3), 16:(1, 4), 26:(1, 5), 29:(1, 6), 42:(1, 7),
+             3:(2, 0),  8:(2, 1), 12:(2, 2), 17:(2, 3), 25:(2, 4), 30:(2, 5), 41:(2, 6), 43:(2, 7),
+             9:(3, 0), 11:(3, 1), 18:(3, 2), 24:(3, 3), 31:(3, 4), 40:(3, 5), 44:(3, 6), 53:(3, 7),
             10:(4, 0), 19:(4, 1), 23:(4, 2), 32:(4, 3), 39:(4, 4), 45:(4, 5), 52:(4, 6), 54:(4, 7),
             20:(5, 0), 22:(5, 1), 33:(5, 2), 38:(5, 3), 46:(5, 4), 51:(5, 5), 55:(5, 6), 60:(5, 7),
             21:(6, 0), 34:(6, 1), 37:(6, 2), 47:(6, 3), 50:(6, 4), 56:(6, 5), 59:(6, 6), 61:(6, 7),
             35:(7, 0), 36:(7, 1), 48:(7, 2), 49:(7, 3), 57:(7, 4), 58:(7, 5), 62:(7, 6), 63:(7, 7)
+        }
+
+        self.jpeg_markers = {
+            "SOI": 0xFFD8,  # Start of Image
+            "APP0": 0xFFE0, # Application Default Header
+            "DQT": 0xFFDB,  # Define Quantization Table
+            "SOF0": 0xFFC0, # Start of Frame (Baseline DCT)
+            "DHT": 0xFFC4,  # Define Huffman Table
+            "SOS": 0xFFDA,  # Start of Scan
+            "EOI": 0xFFD9   # End of Image
         }
     
     def options(self) -> dict:
@@ -69,49 +79,50 @@ class JPEG:
             StepsFrame(
                 name="Block creation",
                 parent=steps_parent,
-                description="Divide the image into blocks of the selected size. This helps to divide\
-                            the image into more stationary regions, which can be compressed more \
-                            efficiently. The block size is usually 8x8, as the improvement in compression \
-                            is not significant for larger block sizes",
+                description="""Divide the image into blocks of the selected size. This helps to divide
+                            the image into more stationary regions, which can be compressed more
+                            efficiently. The block size is usually 8x8, as the improvement in compression
+                            is not significant for larger block sizes""",
             ),
             StepsFrame(
                 name="Direct Transform",
                 parent=steps_parent,
-                description="Each block is transformed using the selected method. The optimal transform \
-                            is the Karhunen-Loeve Transform (KLT), which base depends on the current image. \
-                            However, this will imply sending the base to the receiver, which is not practical. \
-                            On the other hand, the Discrete Cosine Transform (DCT) base is fixed and a good \
-                            approximation of the KLT and is used in practice (as the bases are known by both \
-                            the sender and the receiver we don't need to send them)",
+                description="""Each block is transformed using the selected method. The optimal transform
+                            is the Karhunen-Loeve Transform (KLT), which base depends on the current image.
+                            However, this will imply sending the base to the receiver, which is not practical.
+                            On the other hand, the Discrete Cosine Transform (DCT) base is fixed and a good
+                            approximation of the KLT and is used in practice (as the bases are known by both
+                            the sender and the receiver we don't need to send them)""",
             ),
             StepsFrame(
                 name="Quantization",
                 parent=steps_parent,
-                description="Based on psycho-visual studies, a different quantization step is used \
-                            for each transform coefficient. The compression can be controlled by multiplying \
-                            the quantization table by a factor, by default 1. The formula applied is: \
-                            `^X = round( X / (Q * factor) )`",
+                description="""Based on psycho-visual studies, a different quantization step is used
+                            for each transform coefficient. The compression can be controlled by multiplying
+                            the quantization table by a factor, by default 1. The formula applied is:
+
+                                            `^X = round( X / (Q * factor) )`""",
             ),
             StepsFrame(
                 name="DC coefficient encoding",
                 parent=steps_parent,
-                description="The DC coefficients, which represent the average color of the block, \
-                            are encoded using the difference between the current and the previous block. \
-                            This difference is then encoded using Huffman encoding and the DC Huffman table",
+                description="""The DC coefficients, which represent the average color of the block,
+                            are encoded using the difference between the current and the previous block.
+                            This difference is then encoded using Huffman encoding and the DC Huffman table""",
             ),
             StepsFrame(
                 name="Zig-zag scan",
                 parent=steps_parent,
-                description="The transformed coefficients are scanned in a zig-zag pattern, so that \
-                            the most important coefficients are first and the high-frequency coefficients \
-                            are last. This allows for better compression as the high-frequency coefficients \
-                            are more likely to be zero and we can use run-length encoding (i.e. End of Block(EOB))",
+                description="""The transformed coefficients are scanned in a zig-zag pattern, so that
+                            the most important coefficients are first and the high-frequency coefficients
+                            are last. This allows for better compression as the high-frequency coefficients
+                            are more likely to be zero and we can use run-length encoding (i.e. End of Block(EOB))""",
             ),
             StepsFrame(
                 name="AC coefficient encoding",
                 parent=steps_parent,
-                description="The AC coefficients, which represent the difference between the current \
-                            and the previous coefficient, are encoded using Huffman encoding and the AC Huffman table",
+                description="""The AC coefficients, which represent the difference between the current
+                            and the previous coefficient, are encoded using Huffman encoding and the AC Huffman table""",
             ),
         ]
         return self.codification_steps
@@ -382,6 +393,15 @@ class JPEG:
         Returns:
             The scanned block
         """
+        if self.codification_steps:
+            plot = self.codification_steps[4].get_plot(1, 1, 1)
+            order_array = np.zeros((self.block_size, self.block_size))
+            for key, item in self.zig_zag_order.items():
+                order_array[item[0], item[1]] = key
+            plot.imshow(order_array, cmap='viridis', interpolation='none')
+            for key in self.zig_zag_order.keys():
+                plot.text(self.zig_zag_order[key][1], self.zig_zag_order[key][0], str(key), ha='center', va='center', color='white')
+            self.codification_steps[4].update_plot()
         return np.array([block[self.zig_zag_order[i]] for i in range(self.block_size ** 2)])
 
     def bits_required(self, number):
@@ -439,3 +459,6 @@ class JPEG:
                 symbols.append((0, 0, int_to_bin(0)))
                 break
         return symbols
+
+    def _huffman_encode(self, encoded_values):
+        ...
