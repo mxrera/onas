@@ -149,16 +149,16 @@ class JPEG:
         if isinstance(image, str):
             image = np.array(Image.open(image).convert('L'))
 
-        blocks = self.create_blocks(image, self.block_size)
-        transformed_blocks = self.transform_blocks(blocks)
-        quantized_blocks = self.quantize_blocks(transformed_blocks)
+        blocks = self._create_image_blocks(image, self.block_size)
+        transformed_blocks = self._transform_blocks(blocks)
+        quantized_blocks = self._quantize_blocks(transformed_blocks)
 
         if file_out:
             self._save_image(quantized_blocks, file_out)
         else:
-            return self._decode_image(quantized_blocks, image.shape) 
+            return self._reconstruct_image(quantized_blocks, image.shape) 
 
-    def create_blocks(self, image, block_size):
+    def _create_image_blocks(self, image, block_size):
         """
         Create blocks of the specified size from the image
 
@@ -183,7 +183,7 @@ class JPEG:
         
         return blocks
 
-    def transform_blocks(self, blocks):
+    def _transform_blocks(self, blocks):
         """
         Transform the blocks using the selected algorithm
 
@@ -204,7 +204,7 @@ class JPEG:
 
         return transformed_blocks
 
-    def inverse_transform_blocks(self, blocks):
+    def _inverse_transform_blocks(self, blocks):
         """
         Inverse transform the blocks using the selected algorithm
 
@@ -215,7 +215,7 @@ class JPEG:
         """
         return [self._inverse_dct(block) for block in blocks]
 
-    def quantize_blocks(self, transformed_blocks):
+    def _quantize_blocks(self, transformed_blocks):
         """
         Quantize the transformed blocks using the quantization factor. 
         Can only be used with the DCT transform and the standard block size of 8x8.
@@ -244,7 +244,7 @@ class JPEG:
                 
         return transformed_blocks
     
-    def unquantize_blocks(self, quantized_blocks):
+    def _unquantize_blocks(self, quantized_blocks):
         """
         Unquantize the quantized blocks using the quantization factor. 
         Can only be used with the DCT transform and the standard block size of 8x8.
@@ -264,7 +264,7 @@ class JPEG:
         
         return quantized_blocks
 
-    def _dct(self, block, fast = True):
+    def _dct(self, block, fast_implementation = True):
         """
         Apply the Discrete Cosine Transform to the block.
 
@@ -274,14 +274,15 @@ class JPEG:
 
         Args:
             block: The block to transform
+            fast_implementation: Use the fast implementation of the DCT
         Returns:
             The transformed block
         """
-        if fast:
+        if fast_implementation:
             return dct(dct(block, axis=0, norm='ortho'), axis=1, norm='ortho')
         
         m, n = self.block_size, self.block_size
-        dct = [[ 0 for _ in range(n)] for _ in range(m)]
+        dct_ret = [[ 0 for _ in range(n)] for _ in range(m)]
         pi = math.pi
         
         for i in range(m):
@@ -303,9 +304,9 @@ class JPEG:
                         2 * m)) * math.cos((2 * l + 1) * j * pi / (2 * n))
                         sum = sum + dct1
  
-                dct[i][j] = ci * cj * sum
+                dct_ret[i][j] = ci * cj * sum
 
-        return dct
+        return dct_ret
     
     def _inverse_dct(self, transformed_block):
         """
@@ -318,79 +319,9 @@ class JPEG:
         """
         return idct(idct(transformed_block, axis=0, norm='ortho'), axis=1, norm='ortho')
 
-    def _encode(self, quantized_blocks):
+    def _reconstruct_image(self, encoded_blocks, image_shape):
         """
-        Encode the DC and AC coefficients of the image
-        """
-        previous_DC = 0
-        for quantized_block in quantized_blocks:
-            zig_zag_block = self._zig_zag_scan(quantized_block)
-            # DC encoding
-            DC = zig_zag_block.pop(0)
-            DC_diff = DC - previous_DC
-            previous_DC = DC
-
-            # AC encoding
-            self._run_length_encode(zig_zag_block)
-
-            
-    def _zig_zag_scan(self, block):
-        """
-        Scan the block in a zig-zag pattern
-
-        Args:
-            block: The block to scan
-        Returns:
-            The scanned block
-        """
-        return np.array([block[self.zig_zag_order[i]] for i in range(self.block_size ** 2)])
-    
-    def _run_length_encode(self, block):
-        """
-        Run-length encode the AC coefficients of the block
-
-        Args:
-            block: The block to encode
-        Returns:
-            The encoded AC coefficients
-        """
-        def bits_required(n):
-            return n.bit_length()
-        
-        def int_to_bin(n):
-            if n == 0:
-                return ''
-            ret = bin(n)[2:]
-            return ret if n > 0 else ''.join(['1' if x == '0' else '0' for x in ret])
-        
-        last_non_zero = -1
-        for i, coeff in enumerate(block):
-            if coeff != 0:
-                last_non_zero = i
-        
-        symbols = [] # (runlength, size)
-        values = []
-        run_length = 0
-        for i, coeff in enumerate(block):
-            if i <= last_non_zero:
-                # Encode the coefficient
-                if coeff == 0 and run_length < 15:
-                    run_length += 1
-                    continue
-                symbols.append((run_length, bits_required(coeff)))
-                values.append(int_to_bin(coeff))
-                run_length = 0
-            else:
-                # End of block
-                symbols.append((0,0))
-                values.append(int_to_bin(0))
-                break
-        return symbols, values
-
-
-    def _decode_image(self, encoded_blocks, image_shape):
-        """
-        Decode the DC and AC coefficients of the image and return the reconstructed image
+        Reconstruct the image from the encoded blocks. 
 
         Args:
             encoded_blocks: The encoded blocks
@@ -398,8 +329,8 @@ class JPEG:
         Returns:
             The reconstructed image
         """
-        unquantize_encoded_blocks = self.unquantize_blocks(encoded_blocks)
-        untransformed_blocks = self.inverse_transform_blocks(unquantize_encoded_blocks)
+        unquantize_encoded_blocks = self._unquantize_blocks(encoded_blocks)
+        untransformed_blocks = self._inverse_transform_blocks(unquantize_encoded_blocks)
         reconstructed_image = np.zeros((image_shape[0], image_shape[1]))
         
         for i in range(0, image_shape[0], self.block_size):
@@ -415,8 +346,96 @@ class JPEG:
         if not self.is_standard():
             raise ValueError("Cannot save image when the block size is not 8x8")
 
-        data = self._encode(blocks)
-        # Start Of Image
-        # Frame
-        # End Of Image
-        ...
+        encoded_blocks = self._encode_values(blocks)
+        binary_data = self._huffman_encode(encoded_blocks)
+        with open(filename, 'wb') as f:
+            f.write(st.pack('H', len(binary_data)))
+            f.write(binary_data)
+    
+    def _encode_values(self, quantized_blocks):
+        """
+        Encode the DC and AC coefficients of the image
+        """
+        previous_DC = 0
+        encoded_values = []
+        for quantized_block in quantized_blocks:
+            zig_zag_block = self._zig_zag_scan(quantized_block)
+            # DC encoding
+            DC = zig_zag_block.pop(0)
+            DC_diff = DC - previous_DC
+            DC_symb = (DC_diff, self.bits_required(DC_diff))
+
+            # AC encoding
+            AC_symb = self._run_length_encode(zig_zag_block)
+
+            # Output the encoded block
+            encoded_values = np.array([DC_symb] + AC_symb)
+            previous_DC = DC
+        return encoded_values
+            
+    def _zig_zag_scan(self, block):
+        """
+        Scan the block in a zig-zag pattern
+
+        Args:
+            block: The block to scan
+        Returns:
+            The scanned block
+        """
+        return np.array([block[self.zig_zag_order[i]] for i in range(self.block_size ** 2)])
+
+    def bits_required(self, number):
+        """
+        Calculate the number of bits required to represent the integer number
+
+        Args:
+            number: The integer to represent
+        Returns:
+            The number of bits required
+        """
+        number = abs(number)
+
+        if number == 0:
+            return 0
+        
+        result = 0
+        while number > 0:
+            number >>= 1
+            result += 1
+        return result
+
+    def _run_length_encode(self, block):
+        """
+        Run-length encode the AC coefficients of the block
+
+        Args:
+            block: The block to encode
+        Returns:
+            The encoded AC coefficients
+        """
+        def int_to_bin(n):
+            if n == 0:
+                return ''
+            ret = bin(n)[2:]
+            return ret if n > 0 else ''.join(['1' if x == '0' else '0' for x in ret])
+        
+        last_non_zero = -1
+        for i, coeff in enumerate(block):
+            if coeff != 0:
+                last_non_zero = i
+        
+        symbols = [] # (runlength, size, value)
+        run_length = 0
+        for i, coeff in enumerate(block):
+            if i <= last_non_zero:
+                # Encode the coefficient
+                if coeff == 0 and run_length < 15:
+                    run_length += 1
+                    continue
+                symbols.append((run_length, self.bits_required(coeff), int_to_bin(coeff)))
+                run_length = 0
+            else:
+                # End of block
+                symbols.append((0, 0, int_to_bin(0)))
+                break
+        return symbols
